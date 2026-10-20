@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IsmailOS v2.4 - Ismail Rajhi Desktop</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    :root {
+      --desktop-bg: #19313a;
+      --win-bg: #c0c0c0;
+      --win-border-light: #ffffff;
+      --win-border-dark: #808080;
+      --win-border-darkest: #000000;
+      --title-active-left: #000080;
+      --title-active-right: #1084d0;
+      --title-inactive: #808080;
+      --text-main: #000000;
+      --taskbar-bg: #c0c0c0;
+      --font-family: 'Courier New', 'Lucida Console', Monaco, monospace;
+      --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--desktop-bg);
+      font-family: var(--font-ui);
+      font-size: 13px;
+      color: var(--text-main);
+    }
+
+    /* Subtle CRT Scanline overlay */
+    .crt-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+      background-size: 100% 3px, 6px 100%;
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    #desktop {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 34px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      flex-wrap: wrap;
+      align-content: flex-start;
+      gap: 16px;
+      background: radial-gradient(circle at 50% 40%, #20414e 0%, #13242b 100%);
+    }
+
+    /* Desktop Icons */
+    .desktop-icon {
+      width: 86px;
+      height: 82px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      cursor: pointer;
+      padding: 6px 4px;
+      border: 1px dotted transparent;
+      border-radius: 2px;
+    }
+
+    .desktop-icon:hover {
+      background-color: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .desktop-icon.selected {
+      background-color: rgba(0, 0, 128, 0.45);
+      border-color: #ffffff;
+    }
+
+    .desktop-icon svg {
+      width: 38px;
+      height: 38px;
+      margin-bottom: 5px;
+      filter: drop-shadow(1px 2px 2px rgba(0,0,0,0.6));
+    }
+
+    .desktop-icon span {
+      color: #ffffff;
+      font-size: 11px;
+      font-family: var(--font-family);
+      text-shadow: 1px 1px 2px #000, 0 0 4px #000;
+      line-height: 1.15;
+      word-break: break-word;
+    }
+
+    /* Windows */
+    .retro-window {
+      position: absolute;
+      background: var(--win-bg);
+      border: 2px solid;
+      border-color: var(--win-border-light) var(--win-border-darkest) var(--win-border-darkest) var(--win-border-light);
+      box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      min-width: 320px;
+      min-height: 200px;
+      z-index: 10;
+    }
+
+    .retro-window.active {
+      z-index: 100;
+    }
+
+    .window-header {
+      height: 26px;
+      background: linear-gradient(to right, var(--title-active-left), var(--title-active-right));
+      color: #ffffff;
+      padding: 3px 4px 3px 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: move;
+      font-weight: bold;
+      font-size: 12px;
+      letter-spacing: 0.5px;
+    }
+
+    .retro-window:not(.active) .window-header {
+      background: var(--title-inactive);
+      color: #d4d4d4;
+    }
+
+    .window-title {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .window-title svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .window-controls {
+      display: flex;
+      gap: 2px;
+    }
+
+    .btn-win {
+      width: 18px;
+      height: 18px;
+      background: var(--win-bg);
+      border: 1px solid;
+      border-color: var(--win-border-light) var(--win-border-darkest) var(--win-border-darkest) var(--win-border-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: bold;
+      color: #000;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .btn-win:active {
+      border-color: var(--win-border-darkest) var(--win-border-light) var(--win-border-light) var(--win-border-darkest);
+      padding: 1px 0 0 1px;
+    }
+
+    .window-content {
+      flex: 1;
+      padding: 12px;
+      overflow-y: auto;
+      background: #fdfdfd;
+      border: 2px solid;
+      border-color: var(--win-border-dark) var(--win-border-light) var(--win-border-light) var(--win-border-dark);
+      margin: 4px;
+      color: #111;
+      font-size: 13px;
+      line-height: 1.5;
+      user-select: text;
+    }
+
+    .window-content::-webkit-scrollbar {
+      width: 14px;
+    }
+    .window-content::-webkit-scrollbar-track {
+      background: #dfdfdf;
+    }
+    .window-content::-webkit-scrollbar-thumb {
+      background: #c0c0c0;
+      border: 1px solid;
+      border-color: #ffffff #808080 #808080 #ffffff;
+    }
+
+    /* Content Typography & Sections */
+    h1, h2, h3, h4 {
+      font-family: var(--font-family);
+      color: #000080;
+      margin-bottom: 8px;
+    }
+    h2 {
+      border-bottom: 2px groove #ccc;
+      padding-bottom: 4px;
+      margin-top: 14px;
+      font-size: 15px;
+    }
+    h3 {
+      font-size: 13px;
+      margin-top: 10px;
+      color: #004080;
+    }
+    p {
+      margin-bottom: 8px;
+    }
+    .badge {
+      display: inline-block;
+      background: #e6eef5;
+      color: #002b5e;
+      border: 1px solid #7ea5c7;
+      border-radius: 3px;
+      padding: 2px 7px;
+      font-size: 11px;
+      font-family: var(--font-family);
+      margin: 2px 3px 3px 0;
+    }
+
+    .card {
+      background: #ffffff;
+      border: 1px solid #b8b8b8;
+      box-shadow: 1px 1px 0px #fff;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      border-left: 4px solid #000080;
+    }
+
+    .highlight-box {
+      background: #fff8e6;
+      border: 1px solid #d4b152;
+      padding: 8px 12px;
+      margin-bottom: 12px;
+      font-size: 12px;
+    }
+
+    /* Terminal Window */
+    .terminal-body {
+      background: #0d1117 !important;
+      color: #5af78e !important;
+      font-family: 'Courier New', Courier, monospace !important;
+      font-size: 12px;
+      padding: 10px;
+    }
+    .terminal-output {
+      white-space: pre-wrap;
+      word-break: break-all;
+      margin-bottom: 8px;
+    }
+    .terminal-prompt-line {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .terminal-prompt-prefix {
+      color: #57c7ff;
+      font-weight: bold;
+    }
+    .terminal-input {
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #5af78e;
+      font-family: inherit;
+      font-size: inherit;
+      flex: 1;
+    }
+
+    /* Taskbar */
+    #taskbar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 34px;
+      background: var(--taskbar-bg);
+      border-top: 2px solid var(--win-border-light);
+      display: flex;
+      align-items: center;
+      padding: 2px 4px;
+      gap: 4px;
+      z-index: 1000;
+    }
+
+    .start-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      height: 26px;
+      padding: 2px 10px;
+      font-weight: bold;
+      font-family: var(--font-ui);
+      font-size: 12px;
+      background: var(--win-bg);
+      border: 2px solid;
+      border-color: var(--win-border-light) var(--win-border-darkest) var(--win-border-darkest) var(--win-border-light);
+      cursor: pointer;
+    }
+
+    .start-btn:active, .start-btn.active {
+      border-color: var(--win-border-darkest) var(--win-border-light) var(--win-border-light) var(--win-border-darkest);
+      padding: 3px 9px 1px 11px;
+    }
+
+    .start-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .taskbar-items {
+      display: flex;
+      gap: 4px;
+      flex: 1;
+      overflow-x: auto;
+    }
+
+    .taskbar-tab {
+      height: 25px;
+      min-width: 110px;
+      max-width: 160px;
+      background: var(--win-bg);
+      border: 2px solid;
+      border-color: var(--win-border-light) var(--win-border-darkest) var(--win-border-darkest) var(--win-border-light);
+      padding: 2px 8px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .taskbar-tab.active {
+      background: #e0e0e0;
+      border-color: var(--win-border-darkest) var(--win-border-light) var(--win-border-light) var(--win-border-darkest);
+      font-weight: bold;
+    }
+
+    .tray {
+      height: 24px;
+      border: 2px solid;
+      border-color: var(--win-border-dark) var(--win-border-light) var(--win-border-light) var(--win-border-dark);
+      padding: 2px 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      font-family: var(--font-family);
+      background: #dfdfdf;
+    }
+
+    /* Start Menu */
+    #start-menu {
+      position: absolute;
+      bottom: 34px;
+      left: 2px;
+      width: 240px;
+      background: var(--win-bg);
+      border: 2px solid;
+      border-color: var(--win-border-light) var(--win-border-darkest) var(--win-border-darkest) var(--win-border-light);
+      box-shadow: 2px -2px 0px rgba(0, 0, 0, 0.4);
+      display: none;
+      flex-direction: row;
+      z-index: 2000;
+    }
+
+    .start-menu-sidebar {
+      width: 28px;
+      background: linear-gradient(to top, #000080, #1084d0);
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      color: #fff;
+      font-weight: bold;
+      letter-spacing: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 8px 0;
+      font-family: var(--font-family);
+      font-size: 14px;
+    }
+
+    .start-menu-items {
+      flex: 1;
+      padding: 4px 2px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .start-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .start-menu-item:hover {
+      background: #000080;
+      color: #ffffff;
+    }
+
+    .start-menu-divider {
+      height: 1px;
+      background: #808080;
+      border-bottom: 1px solid #ffffff;
+      margin: 4px 0;
+    }
+
+    /* Interactive Form Elements */
+    .retro-input {
+      width: 100%;
+      padding: 5px 6px;
+      font-family: inherit;
+      font-size: 12px;
+      border: 2px solid;
+      border-color: var(--win-border-dark) var(--win-border-light) var(--win-border-light) var(--win-border-dark);
+      background: #fff;
+      margin-bottom: 8px;
+      outline: none;
+    }
+
+    .retro-btn {
+      padding: 4px 14px;
+      background: var(--win-bg);
+      border: 2px solid;
+      border-color: var(--win-border-light) var(--win-border-darkest) var(--win-border-darkest) var(--win-border-light);
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 12px;
+    }
+    .retro-btn:active {
+      border-color: var(--win-border-darkest) var(--win-border-light) var(--win-border-light) var(--win-border-darkest);
+    }
+
+    .contact-links a {
+      color: #000080;
+      font-weight: bold;
+      text-decoration: none;
+    }
+    .contact-links a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="crt-overlay"></div>
+
+  <!-- Desktop Icons -->
+  <div id="desktop">
+    <div class="desktop-icon" onclick="openWindow('win-about')">
+      <svg viewBox="0 0 48 48" fill="none">
+        <rect x="6" y="8" width="36" height="32" rx="2" fill="#E2A63B" stroke="#2B1A00" stroke-width="2"/>
+        <path d="M6 12L24 24L42 12" stroke="#2B1A00" stroke-width="2"/>
+        <circle cx="24" cy="22" r="7" fill="#4B93D9" stroke="#000" stroke-width="1.5"/>
+        <path d="M24 18V26M21 21H27" stroke="#fff" stroke-width="2"/>
+      </svg>
+      <span>About Ismail.exe</span>
+    </div>
+
+    <div class="desktop-icon" onclick="openWindow('win-projects')">
+      <svg viewBox="0 0 48 48" fill="none">
+        <rect x="6" y="10" width="36" height="26" rx="2" fill="#2B3A42" stroke="#000" stroke-width="2"/>
+        <rect x="9" y="13" width="30" height="20" fill="#00FF66"/>
+        <path d="M14 23L19 18L14 13" stroke="#000" stroke-width="2" stroke-linecap="round"/>
+        <line x1="21" y1="23" x2="27" y2="23" stroke="#000" stroke-width="2"/>
+        <rect x="18" y="38" width="12" height="3" fill="#888" stroke="#000" stroke-width="1.5"/>
+        <rect x="14" y="41" width="20" height="3" fill="#666" stroke="#000" stroke-width="1.5"/>
+      </svg>
+      <span>Projects.exe</span>
+    </div>
+
+    <div class="desktop-icon" onclick="openWindow('win-skills')">
+      <svg viewBox="0 0 48 48" fill="none">
+        <circle cx="24" cy="24" r="18" fill="#F7D154" stroke="#000" stroke-width="2"/>
+        <path d="M24 10V14M24 34V38M10 24H14M34 24H38" stroke="#000" stroke-width="2"/>
+        <circle cx="24" cy="24" r="9" fill="#E86C44" stroke="#000" stroke-width="2"/>
+        <circle cx="24" cy="24" r="4" fill="#fff"/>
+      </svg>
+      <span>Skills.sys</span>
+    </div>
+
+    <div class="desktop-icon" onclick="openWindow('win-journey')">
+      <svg viewBox="0 0 48 48" fill="none">
+        <path d="M10 8H34L40 14V42H10V8Z" fill="#F9F9F9" stroke="#000" stroke-width="2"/>
+        <path d="M34 8V14H40" fill="#DDD" stroke="#000" stroke-width="2"/>
+        <line x1="16" y1="20" x2="32" y2="20" stroke="#000080" stroke-width="2"/>
+        <line x1="16" y1="26" x2="34" y2="26" stroke="#444" stroke-width="1.5"/>
+        <line x1="16" y1="32" x2="28" y2="32" stroke="#444" stroke-width="1.5"/>
+      </svg>
+      <span>Education.txt</span>
+    </div>
+
+    <div class="desktop-icon" onclick="openWindow('win-terminal')">
+      <svg viewBox="0 0 48 48" fill="none">
+        <rect x="4" y="8" width="40" height="32" rx="3" fill="#111" stroke="#444" stroke-width="2"/>
+        <path d="M10 18L18 24L10 30" stroke="#5AF78E" stroke-width="3" stroke-linecap="round"/>
+        <line x1="22" y1="30" x2="32" y2="30" stroke="#5AF78E" stroke-width="3"/>
+      </svg>
+      <span>Terminal.exe</span>
+    </div>
+
+    <div class="desktop-icon" onclick="openWindow('win-contact')">
+      <svg viewBox="0 0 48 48" fill="none">
+        <rect x="6" y="10" width="36" height="28" rx="2" fill="#EAEAEA" stroke="#000" stroke-width="2"/>
+        <path d="M6 14L24 26L42 14" stroke="#000" stroke-width="2"/>
+        <rect x="28" y="24" width="12" height="12" fill="#D63031" stroke="#000" stroke-width="1.5"/>
+        <line x1="34" y1="27" x2="34" y2="33" stroke="#fff" stroke-width="1.5"/>
+        <line x1="31" y1="30" x2="37" y2="30" stroke="#fff" stroke-width="1.5"/>
+      </svg>
+      <span>Contact.exe</span>
+    </div>
+  </div>
+
+  <!-- WINDOW 1: ABOUT ME -->
+  <div id="win-about" class="retro-window active" style="top: 35px; left: 160px; width: 620px; height: 530px;">
+    <div class="window-header" onmousedown="startDrag(event, 'win-about')">
+      <div class="window-title">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+        <span>About Ismail Rajhi — Identity & Vision</span>
+      </div>
+      <div class="window-controls">
+        <button class="btn-win" onclick="minimizeWindow('win-about')">_</button>
+        <button class="btn-win" onclick="toggleMaximize('win-about')">□</button>
+        <button class="btn-win" onclick="closeWindow('win-about')">✕</button>
+      </div>
+    </div>
+    <div class="window-content">
+      <h1>Ismail Rajhi</h1>
+      <p style="font-weight: bold; color: #444; font-family: var(--font-family); font-size: 13px;">
+        Software Developer | AI Enthusiast | Creative Developer
+      </p>
+
+      <div class="highlight-box">
+        <b>📍 Location & Academic Context:</b> Computer Science graduate from Tunisia, currently pursuing a Master's degree in Computer Science in China.<br>
+        <b>🏆 Academic Performance:</b> Graduation Average: <b>15.20 / 20</b>
+      </div>
+
+      <h2>Professional Introduction</h2>
+      <p>
+        I'm Ismail Rajhi, a Tunisian Computer Science graduate currently pursuing my Master's degree in Computer Science in China.
+      </p>
+      <p>
+        I am deeply passionate about software engineering, artificial intelligence, full-stack development, mobile applications, and modern interactive web experiences.
+      </p>
+      <p>
+        I enjoy transforming complex ideas into functional digital products, combining rigorous engineering principles with thoughtful UI/UX design. I like exploring emerging technologies, solving challenging technical problems, and building applications that are useful, intuitive, and visually appealing.
+      </p>
+      <p>
+        My academic journey from Tunisia to China reflects my commitment to continuous learning, personal growth, resilience, and exploring international horizons in technology.
+      </p>
+
+      <h2>Core Values & Engineering Philosophy</h2>
+      <div class="card">
+        <ul style="padding-left: 20px;">
+          <li><b>Continuous Learning:</b> Relentless drive for technical growth and mastery.</li>
+          <li><b>Clean Architecture:</b> Clean, maintainable, modular, and well-organized code.</li>
+          <li><b>Creative Problem-Solving:</b> Tackling challenging problems with ingenuity and robust engineering.</li>
+          <li><b>User-First Mentality:</b> Thoughtful user experiences and relentless attention to detail.</li>
+          <li><b>Substance Over Flash:</b> Building high-utility products rather than projects that only look impressive.</li>
+        </ul>
+      </div>
+
+      <h2>Career Vision</h2>
+      <p>
+        My goal is to deepen my knowledge of Computer Science and Artificial Intelligence, engineer production-grade software solutions, and continue growing as a forward-thinking developer.
+      </p>
+      <p>
+        I am seeking opportunities that allow me to apply my skills, learn from experienced engineering teams, collaborate with visionary developers, and contribute to meaningful technology projects.
+      </p>
+    </div>
+  </div>
+
+  <!-- WINDOW 2: PROJECTS -->
+  <div id="win-projects" class="retro-window" style="top: 70px; left: 240px; width: 680px; height: 540px;">
+    <div class="window-header" onmousedown="startDrag(event, 'win-projects')">
+      <div class="window-title">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"/></svg>
+        <span>Featured Projects Explorer</span>
+      </div>
+      <div class="window-controls">
+        <button class="btn-win" onclick="minimizeWindow('win-projects')">_</button>
+        <button class="btn-win" onclick="toggleMaximize('win-projects')">□</button>
+        <button class="btn-win" onclick="closeWindow('win-projects')">✕</button>
+      </div>
+    </div>
+    <div class="window-content">
+      <h2>Featured Software Projects</h2>
+      <p style="color: #666; font-size: 12px; margin-bottom: 14px;">
+        Curated selection of completed products and active engineering concepts.
+      </p>
+
+      <!-- Project 1 -->
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <h3 style="font-size: 15px; margin: 0; color: #000080;">ShopMind — Intelligent E-Commerce Manager</h3>
+          <span class="badge" style="background: #e6f8ea; border-color: #27ae60; color: #1e824c;">Full-Stack & AI</span>
+        </div>
+        <p style="margin-top: 6px;">
+          An intelligent e-commerce platform combining comprehensive store and inventory management, modern customer shopping features, real-time analytics, and AI-assisted content generation.
+        </p>
+        <p><b>Key Features:</b></p>
+        <ul style="padding-left: 20px; margin-bottom: 8px;">
+          <li>Product and inventory management dashboard</li>
+          <li>AI-generated product descriptions and automated SEO tags</li>
+          <li>Customer authentication and interactive catalog browsing</li>
+          <li>Shopping cart, order processing, and returns handling</li>
+          <li>Analytics dashboard for sales metrics and performance</li>
+          <li>Automated customer support chatbot powered by AI APIs</li>
+        </ul>
+        <div>
+          <b>Technologies:</b>
+          <span class="badge">Angular</span>
+          <span class="badge">TypeScript</span>
+          <span class="badge">Node.js</span>
+          <span class="badge">Express.js</span>
+          <span class="badge">PostgreSQL</span>
+          <span class="badge">JWT</span>
+          <span class="badge">AI APIs</span>
+        </div>
+      </div>
+
+      <!-- Project 2 -->
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <h3 style="font-size: 15px; margin: 0; color: #000080;">TEMPORA — Immersive 3D Weather Experience</h3>
+          <span class="badge" style="background: #eaf2fd; border-color: #2980b9; color: #1f618d;">Creative 3D Web</span>
+        </div>
+        <p style="margin-top: 6px;">
+          A cinematic weather website concept designed to transform conventional meteorological data into an immersive visual and interactive experience.
+        </p>
+        <p><b>Key Features:</b></p>
+        <ul style="padding-left: 20px; margin-bottom: 8px;">
+          <li>Interactive 3D Earth globe with fluid navigation</li>
+          <li>Dynamic location discovery and multi-city selection</li>
+          <li>Weather-dependent dynamic visual shaders and themes</li>
+          <li>Atmospheric transitions matching real-world climate states</li>
+          <li>Modern sleek glassmorphism user interface</li>
+          <li>Detailed weather conditions and multi-day forecasts</li>
+        </ul>
+        <div>
+          <b>Core Elements:</b>
+          <span class="badge">Interactive 3D</span>
+          <span class="badge">Modern Glassmorphism UI</span>
+          <span class="badge">Weather APIs</span>
+          <span class="badge">Atmospheric Shaders</span>
+        </div>
+      </div>
+
+      <!-- Project 3 -->
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <h3 style="font-size: 15px; margin: 0; color: #000080;">Weather Application — Mobile Experience</h3>
+          <span class="badge" style="background: #fcf3cf; border-color: #f39c12; color: #b9770e;">Cross-Platform Mobile</span>
+        </div>
+        <p style="margin-top: 6px;">
+          A cross-platform mobile application delivering accurate, current meteorological information through a user-friendly and responsive interface.
+        </p>
+        <p><b>Key Features:</b></p>
+        <ul style="padding-left: 20px; margin-bottom: 8px;">
+          <li>Live weather tracking with automatic location services</li>
+          <li>Detailed temperature, humidity, wind, and forecast statistics</li>
+          <li>Clean mobile UI tailored for intuitive day-to-day use</li>
+          <li>Smooth animations and reliable offline caching</li>
+        </ul>
+        <div>
+          <b>Technologies:</b>
+          <span class="badge">Flutter</span>
+          <span class="badge">Dart</span>
+          <span class="badge">Weather APIs</span>
+          <span class="badge">Location Services</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WINDOW 3: SKILLS -->
+  <div id="win-skills" class="retro-window" style="top: 110px; left: 190px; width: 620px; height: 500px;">
+    <div class="window-header" onmousedown="startDrag(event, 'win-skills')">
+      <div class="window-title">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z"/></svg>
+        <span>Technical Skills Inventory</span>
+      </div>
+      <div class="window-controls">
+        <button class="btn-win" onclick="minimizeWindow('win-skills')">_</button>
+        <button class="btn-win" onclick="toggleMaximize('win-skills')">□</button>
+        <button class="btn-win" onclick="closeWindow('win-skills')">✕</button>
+      </div>
+    </div>
+    <div class="window-content">
+      <h2>Technical Capabilities</h2>
+      <p style="font-size: 12px; color: #555;">
+        Accurate inventory of active programming languages, frameworks, and engineering tools.
+      </p>
+
+      <div class="card">
+        <h3>Programming Languages</h3>
+        <span class="badge">TypeScript</span>
+        <span class="badge">JavaScript</span>
+        <span class="badge">Python</span>
+        <span class="badge">Java</span>
+        <span class="badge">C / C++</span>
+        <span class="badge">SQL</span>
+      </div>
+
+      <div class="card">
+        <h3>Frontend Development</h3>
+        <span class="badge">Angular</span>
+        <span class="badge">React & Modern Web</span>
+        <span class="badge">HTML5 & CSS3</span>
+        <span class="badge">Tailwind CSS</span>
+        <span class="badge">Angular Material</span>
+        <span class="badge">Responsive Design</span>
+        <span class="badge">UI/UX Implementation</span>
+      </div>
+
+      <div class="card">
+        <h3>Backend Development</h3>
+        <span class="badge">Node.js</span>
+        <span class="badge">Express.js</span>
+        <span class="badge">REST API Development</span>
+        <span class="badge">JWT Authentication</span>
+        <span class="badge">PostgreSQL</span>
+        <span class="badge">MongoDB & Mongoose</span>
+      </div>
+
+      <div class="card">
+        <h3>Mobile Development</h3>
+        <span class="badge">Flutter</span>
+        <span class="badge">Dart</span>
+        <span class="badge">Cross-Platform App Dev</span>
+        <span class="badge">API Integration</span>
+        <span class="badge">Mobile UI/UX Design</span>
+      </div>
+
+      <div class="card">
+        <h3>Artificial Intelligence & Automation</h3>
+        <span class="badge">AI-Powered App Dev</span>
+        <span class="badge">LLM Integration</span>
+        <span class="badge">AI Assistants & Chatbots</span>
+        <span class="badge">Intelligent Automation</span>
+        <span class="badge">Machine Learning Foundations</span>
+      </div>
+
+      <div class="card">
+        <h3>Tools & Infrastructure</h3>
+        <span class="badge">Git & GitHub</span>
+        <span class="badge">Figma</span>
+        <span class="badge">Postman</span>
+        <span class="badge">Overleaf / LaTeX</span>
+        <span class="badge">Linux Fundamentals</span>
+        <span class="badge">Cisco Networking Academy Fundamentals</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- WINDOW 4: EDUCATION & JOURNEY -->
+  <div id="win-journey" class="retro-window" style="top: 130px; left: 170px; width: 560px; height: 440px;">
+    <div class="window-header" onmousedown="startDrag(event, 'win-journey')">
+      <div class="window-title">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z"/></svg>
+        <span>Academic Journey — Education</span>
+      </div>
+      <div class="window-controls">
+        <button class="btn-win" onclick="minimizeWindow('win-journey')">_</button>
+        <button class="btn-win" onclick="toggleMaximize('win-journey')">□</button>
+        <button class="btn-win" onclick="closeWindow('win-journey')">✕</button>
+      </div>
+    </div>
+    <div class="window-content">
+      <h2>Academic Milestones</h2>
+
+      <div class="card">
+        <h3 style="color: #000080; margin: 0 0 4px 0;">Master's Degree in Computer Science</h3>
+        <p style="color: #666; font-size: 12px; margin-bottom: 6px;"><b>Location:</b> China | <b>Status:</b> Currently Pursuing</p>
+        <p>
+          Deepening academic and practical expertise in advanced computing, artificial intelligence architectures, machine learning methodologies, and scalable software systems.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3 style="color: #000080; margin: 0 0 4px 0;">Bachelor's Degree in Computer Science</h3>
+        <p style="color: #666; font-size: 12px; margin-bottom: 6px;"><b>Location:</b> Tunisia | <b>Graduation Average:</b> 15.20 / 20</p>
+        <p>
+          Solid theoretical foundations in algorithms, data structures, software engineering, databases, networking, and object-oriented programming.
+        </p>
+      </div>
+
+      <h2>International Trajectory</h2>
+      <p>
+        Transitioning from Tunisia to China for graduate studies embodies continuous self-improvement, adaptability across multicultural environments, and dedication to expanding technical expertise on a global scale.
+      </p>
+    </div>
+  </div>
+
+  <!-- WINDOW 5: TERMINAL -->
+  <div id="win-terminal" class="retro-window" style="top: 150px; left: 300px; width: 580px; height: 380px;">
+    <div class="window-header" onmousedown="startDrag(event, 'win-terminal')">
+      <div class="window-title">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V8h16v10z"/></svg>
+        <span>Command Prompt — IsmailOS CLI</span>
+      </div>
+      <div class="window-controls">
+        <button class="btn-win" onclick="minimizeWindow('win-terminal')">_</button>
+        <button class="btn-win" onclick="toggleMaximize('win-terminal')">□</button>
+        <button class="btn-win" onclick="closeWindow('win-terminal')">✕</button>
+      </div>
+    </div>
+    <div class="window-content terminal-body" onclick="document.getElementById('term-input').focus()">
+      <div id="term-output" class="terminal-output">IsmailOS Command Processor [Version 2.4.113]
+(C) 2024 Ismail Rajhi. All rights reserved.
+
+Type 'help' to view available system commands.
+</div>
+      <div class="terminal-prompt-line">
+        <span class="terminal-prompt-prefix">ismail@rajhi-os:~$</span>
+        <input type="text" id="term-input" class="terminal-input" autocomplete="off" spellcheck="false" autofocus>
+      </div>
+    </div>
+  </div>
+
+  <!-- WINDOW 6: CONTACT -->
+  <div id="win-contact" class="retro-window" style="top: 180px; left: 210px; width: 480px; height: 420px;">
+    <div class="window-header" onmousedown="startDrag(event, 'win-contact')">
+      <div class="window-title">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+        <span>Connect with Ismail Rajhi</span>
+      </div>
+      <div class="window-controls">
+        <button class="btn-win" onclick="minimizeWindow('win-contact')">_</button>
+        <button class="btn-win" onclick="toggleMaximize('win-contact')">□</button>
+        <button class="btn-win" onclick="closeWindow('win-contact')">✕</button>
+      </div>
+    </div>
+    <div class="window-content contact-links">
+      <h2>Get In Touch</h2>
+      <p>
+        I welcome discussions regarding engineering opportunities, collaborations on AI/web applications, or technical inquiries.
+      </p>
+
+      <div class="card" style="margin-top: 12px;">
+        <p><b>Name:</b> Ismail Rajhi</p>
+        <p><b>Role:</b> Software Developer | AI Enthusiast</p>
+        <p><b>GitHub:</b> <a href="https://github.com/ismailrajhi" target="_blank" rel="noopener noreferrer">github.com/ismailrajhi</a></p>
+      </div>
+
+      <h2>Send A Message</h2>
+      <form onsubmit="handleContactSubmit(event)">
+        <input type="text" class="retro-input" placeholder="Your Name" required>
+        <input type="email" class="retro-input" placeholder="Your Email Address" required>
+        <textarea class="retro-input" rows="4" placeholder="Your Message..." required></textarea>
+        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+          <button type="reset" class="retro-btn">Reset</button>
+          <button type="submit" class="retro-btn" style="background: #e0f0ff;">Transmit</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Start Menu -->
+  <div id="start-menu">
+    <div class="start-menu-sidebar">
+      ISMAIL RAJHI
+    </div>
+    <div class="start-menu-items">
+      <div class="start-menu-item" onclick="openWindow('win-about'); toggleStartMenu();">
+        <span>👤 About Ismail</span>
+      </div>
+      <div class="start-menu-item" onclick="openWindow('win-projects'); toggleStartMenu();">
+        <span>🚀 Featured Projects</span>
+      </div>
+      <div class="start-menu-item" onclick="openWindow('win-skills'); toggleStartMenu();">
+        <span>⚡ Technical Skills</span>
+      </div>
+      <div class="start-menu-item" onclick="openWindow('win-journey'); toggleStartMenu();">
+        <span>🎓 Education & Journey</span>
+      </div>
+      <div class="start-menu-item" onclick="openWindow('win-terminal'); toggleStartMenu();">
+        <span>💻 Terminal CLI</span>
+      </div>
+      <div class="start-menu-item" onclick="openWindow('win-contact'); toggleStartMenu();">
+        <span>✉️ Contact Me</span>
+      </div>
+      <div class="start-menu-divider"></div>
+      <div class="start-menu-item" onclick="alert('IsmailOS System Status: Online & Operational.'); toggleStartMenu();">
+        <span>ℹ️ System Information</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Taskbar -->
+  <div id="taskbar">
+    <button id="start-button" class="start-btn" onclick="toggleStartMenu()">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z"/></svg>
+      <span>Start</span>
+    </button>
+    <div id="taskbar-tabs" class="taskbar-items">
+      <!-- Generated dynamically -->
+    </div>
+    <div class="tray">
+      <span title="Status: Online">🟢 Online</span>
+      <span id="tray-clock">12:00:00</span>
+    </div>
+  </div>
+
+  <script>
+    // Forward events to parent Three.js workstation window for audio and camera parallax
+    function forwardEvent(type, payload) {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ type, ...payload }, '*');
+      }
+    }
+
+    window.addEventListener('mousemove', (e) => {
+      forwardEvent('mousemove', { clientX: e.clientX, clientY: e.clientY });
+    });
+
+    window.addEventListener('mousedown', (e) => {
+      forwardEvent('mousedown', { clientX: e.clientX, clientY: e.clientY });
+    });
+
+    window.addEventListener('mouseup', (e) => {
+      forwardEvent('mouseup', { clientX: e.clientX, clientY: e.clientY });
+    });
+
+    window.addEventListener('keydown', (e) => {
+      forwardEvent('keydown', { key: e.key });
+    });
+
+    window.addEventListener('keyup', (e) => {
+      forwardEvent('keyup', { key: e.key });
+    });
+
+    // Window Management State
+    let activeZ = 100;
+    const windows = ['win-about', 'win-projects', 'win-skills', 'win-journey', 'win-terminal', 'win-contact'];
+
+    function bringToFront(winId) {
+      activeZ += 1;
+      const el = document.getElementById(winId);
+      if (el) {
+        document.querySelectorAll('.retro-window').forEach(w => w.classList.remove('active'));
+        el.classList.add('active');
+        el.style.zIndex = activeZ;
+        updateTaskbar();
+      }
+    }
+
+    function openWindow(winId) {
+      const el = document.getElementById(winId);
+      if (el) {
+        el.style.display = 'flex';
+        bringToFront(winId);
+      }
+    }
+
+    function closeWindow(winId) {
+      const el = document.getElementById(winId);
+      if (el) {
+        el.style.display = 'none';
+        updateTaskbar();
+      }
+    }
+
+    function minimizeWindow(winId) {
+      const el = document.getElementById(winId);
+      if (el) {
+        el.style.display = 'none';
+        updateTaskbar();
+      }
+    }
+
+    function toggleMaximize(winId) {
+      const el = document.getElementById(winId);
+      if (!el) return;
+      if (el.dataset.maximized === 'true') {
+        el.style.top = el.dataset.prevTop;
+        el.style.left = el.dataset.prevLeft;
+        el.style.width = el.dataset.prevWidth;
+        el.style.height = el.dataset.prevHeight;
+        el.dataset.maximized = 'false';
+      } else {
+        el.dataset.prevTop = el.style.top;
+        el.dataset.prevLeft = el.style.left;
+        el.dataset.prevWidth = el.style.width;
+        el.dataset.prevHeight = el.style.height;
+        el.style.top = '0px';
+        el.style.left = '0px';
+        el.style.width = '100%';
+        el.style.height = 'calc(100% - 34px)';
+        el.dataset.maximized = 'true';
+      }
+      bringToFront(winId);
+    }
+
+    // Draggable Windows
+    let dragTarget = null;
+    let dragOffset = { x: 0, y: 0 };
+
+    function startDrag(e, winId) {
+      dragTarget = document.getElementById(winId);
+      bringToFront(winId);
+      const rect = dragTarget.getBoundingClientRect();
+      dragOffset.x = e.clientX - rect.left;
+      dragOffset.y = e.clientY - rect.top;
+
+      window.addEventListener('mousemove', onDragging);
+      window.addEventListener('mouseup', stopDrag);
+    }
+
+    function onDragging(e) {
+      if (!dragTarget || dragTarget.dataset.maximized === 'true') return;
+      let left = e.clientX - dragOffset.x;
+      let top = e.clientY - dragOffset.y;
+      if (top < 0) top = 0;
+      dragTarget.style.left = left + 'px';
+      dragTarget.style.top = top + 'px';
+    }
+
+    function stopDrag() {
+      dragTarget = null;
+      window.removeEventListener('mousemove', onDragging);
+      window.removeEventListener('mouseup', stopDrag);
+    }
+
+    // Taskbar Sync
+    function updateTaskbar() {
+      const container = document.getElementById('taskbar-tabs');
+      container.innerHTML = '';
+      windows.forEach(winId => {
+        const win = document.getElementById(winId);
+        if (win && win.style.display !== 'none') {
+          const tab = document.createElement('div');
+          tab.className = 'taskbar-tab' + (win.classList.contains('active') ? ' active' : '');
+          const title = win.querySelector('.window-title span').innerText;
+          tab.innerText = title;
+          tab.onclick = () => {
+            if (win.style.display === 'none') {
+              win.style.display = 'flex';
+              bringToFront(winId);
+            } else if (win.classList.contains('active')) {
+              win.style.display = 'none';
+              updateTaskbar();
+            } else {
+              bringToFront(winId);
+            }
+          };
+          container.appendChild(tab);
+        }
+      });
+    }
+
+    // Start Menu Toggle
+    function toggleStartMenu() {
+      const menu = document.getElementById('start-menu');
+      const btn = document.getElementById('start-button');
+      if (menu.style.display === 'flex') {
+        menu.style.display = 'none';
+        btn.classList.remove('active');
+      } else {
+        menu.style.display = 'flex';
+        btn.classList.add('active');
+      }
+    }
+
+    document.addEventListener('click', (e) => {
+      const menu = document.getElementById('start-menu');
+      const btn = document.getElementById('start-button');
+      if (!menu.contains(e.target) && !btn.contains(e.target)) {
+        menu.style.display = 'none';
+        btn.classList.remove('active');
+      }
+    });
+
+    // Clock
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('tray-clock').innerText = now.toLocaleTimeString();
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // Terminal Commands
+    const termInput = document.getElementById('term-input');
+    const termOutput = document.getElementById('term-output');
+
+    const COMMANDS = {
+      help: "Available commands:\n  about     - Display personal summary\n  skills    - List core programming languages and tech\n  projects  - List featured engineering projects\n  education - Display academic background\n  contact   - Display communication channels\n  clear     - Clear terminal buffer\n  date      - Display current time and date\n  whoami    - Display user identity",
+      about: "Ismail Rajhi — Tunisian Computer Science graduate currently pursuing a Master's in CS in China.\nFocus: Software Engineering, Artificial Intelligence, Full-Stack & Creative Development.",
+      skills: "Languages: TypeScript, JavaScript, Python, Java, C/C++, SQL\nFrontend: Angular, React, Tailwind CSS, Angular Material\nBackend: Node.js, Express.js, PostgreSQL, MongoDB\nMobile: Flutter, Dart\nAI: LLM Integration, Intelligent Automation, Chatbots",
+      projects: "1. ShopMind — Intelligent E-Commerce Manager (Angular, Node, Postgres, AI)\n2. TEMPORA — Immersive 3D Weather Experience (Interactive 3D, Shaders)\n3. Weather Application — Cross-Platform Weather Client (Flutter, Dart)",
+      education: "Master's in Computer Science (China, Currently Pursuing)\nBachelor's in Computer Science (Tunisia, GPA: 15.20/20)",
+      contact: "GitHub: https://github.com/ismailrajhi\nEmail: Available via Contact form",
+      whoami: "ismail_rajhi [guest@rajhi-os]",
+      date: () => new Date().toString(),
+    };
+
+    termInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const cmd = termInput.value.trim().toLowerCase();
+        termInput.value = '';
+
+        termOutput.innerText += `\nismail@rajhi-os:~$ ${cmd}\n`;
+
+        if (cmd === 'clear') {
+          termOutput.innerText = '';
+        } else if (COMMANDS[cmd]) {
+          const res = typeof COMMANDS[cmd] === 'function' ? COMMANDS[cmd]() : COMMANDS[cmd];
+          termOutput.innerText += res + '\n';
+        } else if (cmd !== '') {
+          termOutput.innerText += `Command not recognized: '${cmd}'. Type 'help' for available commands.\n`;
+        }
+
+        const terminalContent = termOutput.parentElement;
+        terminalContent.scrollTop = terminalContent.scrollHeight;
+      }
+    });
+
+    // Contact Form Handler
+    function handleContactSubmit(e) {
+      e.preventDefault();
+      alert('Thank you for your message! It has been recorded into Ismail Rajhi transmission queue.');
+      e.target.reset();
+    }
+
+    // Bring initial active window to front
+    bringToFront('win-about');
+  </script>
+</body>
+</html>
